@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chillu Check</title>
+<style>
+@font-face { font-family: "Manjari"; src: url("/assets/fonts/Manjari-Regular.ttf") format("truetype"); font-display: swap; }
+:root { --bg:#0a0a0a; --panel:#131313; --line:#262626; --text:#f2f2ee; --muted:#8b8b85; --olive:#464a39;
+        --bad:#e5484d; --good:#3dd68c; --warn:#d6a53d; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg:#f5f0e8; --panel:#fffdf8; --line:#d8d0c0; --text:#111; --muted:#5c5c55; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font:18px/1.45 "Space Grotesk", system-ui, sans-serif; }
+main { max-width:1180px; margin:0 auto; padding:24px 16px 64px; }
+h1 { font-size:20px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:0 0 12px; font-weight:600; }
+label { display:block; color:var(--muted); margin-bottom:6px; }
+#name { width:100%; font:64px/1.2 "Manjari", sans-serif; background:var(--panel); color:var(--text); border:2px solid var(--line);
+        border-radius:14px; padding:12px 18px; }
+#name:focus { outline:3px solid var(--good); }
+.row { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0 20px; }
+button { font:inherit; color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:8px 16px; cursor:pointer; min-height:44px; }
+button[aria-pressed="true"] { background:var(--olive); }
+#count { font-size:clamp(28px,5vw,64px); font-weight:700; line-height:1.1; margin:8px 0 4px; }
+#count .n { color:var(--bad); }
+#sub { color:var(--muted); margin-bottom:20px; }
+.grid { display:grid; grid-template-columns:1.1fr 1.2fr 1.2fr; gap:0; border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+.cell { padding:10px 14px; border-bottom:1px solid var(--line); background:var(--panel); min-height:56px; }
+.head { color:var(--muted); font-size:14px; letter-spacing:.06em; text-transform:uppercase; }
+.val { font:28px/1.3 "Manjari", sans-serif; word-break:break-word; }
+.chip { display:inline-block; font:700 13px/1 system-ui; padding:4px 8px; border-radius:6px; margin-right:8px; vertical-align:middle; }
+.bad .chip { background:var(--bad); color:#fff; }
+.good .chip { background:var(--good); color:#06240f; }
+.na .chip { background:var(--line); color:var(--muted); }
+.title { font-weight:600; }
+.why { color:var(--muted); font-size:14px; }
+#base { margin-top:24px; padding:16px; border:1px dashed var(--line); border-radius:12px; color:var(--muted); }
+#base b { color:var(--text); }
+footer { margin-top:32px; color:var(--muted); font-size:14px; }
+footer a { color:var(--text); }
+@media (max-width:760px) { .grid { grid-template-columns:1fr; } #name { font-size:40px; } .head.t { display:none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Chillu Check &middot; does your software break Malayalam?</h1>
+  <label for="name">Type your name or your town, in Malayalam</label>
+  <input id="name" type="text" autocomplete="off" lang="ml" maxlength="200" placeholder="അടൂർ" value="">
+  <div class="row">
+    <button type="button" id="ex1">അടൂർ</button>
+    <button type="button" id="ex2">ക്ഷേത്രം ഉത്സവം</button>
+    <button type="button" id="ex3">കൊച്ചി</button>
+    <button type="button" id="hex" aria-pressed="false">show code points</button>
+  </div>
+  <div id="count" aria-live="polite"></div>
+  <div id="sub"></div>
+  <div class="grid" id="grid" role="table" aria-label="Nine code paths, before and after"></div>
+  <div id="base"></div>
+  <footer>
+    Fixtures: SMC Malayalam corpus (CC BY-SA 3.0). Automated checks cover six behaviours, not all of Malayalam.
+    Built by <a href="https://ryyansafar.site">ryyansafar.site</a> &middot; <a href="https://github.com/ryyansafar">GitHub</a>.
+  </footer>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let showHex = false, timer = null;
+function cp(s) { return Array.from(s).map(c => "U+" + c.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")).join(" "); }
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+function cell(kind, state, label, text, hexText) {
+  const c = el("div", "cell " + state);
+  const chip = el("span", "chip", label); c.appendChild(chip);
+  const v = el("span", "val", text === "" ? "(empty)" : text); c.appendChild(v);
+  if (showHex && hexText !== undefined) { c.appendChild(el("div", "why", hexText)); }
+  return c;
+}
+function render(data) {
+  const g = $("grid"); g.replaceChildren();
+  ["Code path", "BEFORE (as shipped)", "AFTER (patched)"].forEach((h, i) => g.appendChild(el("div", "cell head" + (i ? "" : " t"), h)));
+  data.results.forEach(r => {
+    const left = el("div", "cell"); left.appendChild(el("div", "title", r.title)); left.appendChild(el("div", "why", r.why)); g.appendChild(left);
+    const beforeState = !r.exposed && !r.mangled_before ? "na" : r.mangled_before ? "bad" : "good";
+    const beforeLabel = beforeState === "na" ? "N/A" : beforeState === "bad" ? "✕ MANGLED" : "✓ OK";
+    g.appendChild(cell("b", beforeState, beforeLabel, r.before, cp(r.before)));
+    const afterState = r.mangled_after ? "bad" : (r.exposed ? "good" : "na");
+    g.appendChild(cell("a", afterState, afterState === "good" ? "✓ FIXED" : afterState === "bad" ? "✕ STILL BROKEN" : "N/A", r.after, cp(r.after)));
+  });
+  const n = data.summary.mangled_before;
+  const count = $("count"); count.replaceChildren();
+  if (!data.text) { count.textContent = "Type a name to begin"; $("sub").textContent = ""; return; }
+  count.appendChild(el("span", "n", String(n)));
+  count.appendChild(document.createTextNode(" of " + data.summary.total + " real code paths mangle your name"));
+  $("sub").textContent = "After the patches: " + data.summary.mangled_after + " of " + data.summary.total + ". Paths marked N/A do not apply to this text.";
+}
+async function run() {
+  const text = $("name").value;
+  try {
+    const res = await fetch("/api/check?text=" + encodeURIComponent(text));
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    render(await res.json());
+  } catch (e) { $("count").textContent = "Could not reach the checker: " + e.message; }
+}
+function schedule() { clearTimeout(timer); timer = setTimeout(run, 120); }
+$("name").addEventListener("input", schedule);
+[["ex1", "അടൂർ"], ["ex2", "ക്ഷേത്രം ഉത്സവം"], ["ex3", "കൊച്ചി"]].forEach(([id, t]) => $(id).addEventListener("click", () => { $("name").value = t; run(); }));
+$("hex").addEventListener("click", (e) => { showHex = !showHex; e.target.setAttribute("aria-pressed", String(showHex)); run(); });
+fetch("/api/baseline").then(r => r.json()).then(b => {
+  const base = $("base"); base.replaceChildren();
+  base.appendChild(document.createTextNode("Across "));
+  base.appendChild(el("b", "", b.names.toLocaleString()));
+  base.appendChild(document.createTextNode(" real Malayalam names and places: "));
+  base.appendChild(el("b", "", Math.round(b.share_broken_by_at_least_one * 100) + "%"));
+  base.appendChild(document.createTextNode(" are broken by at least one path; Markdown anchors are empty for "));
+  base.appendChild(el("b", "", Math.round(b.per_path_share.md_anchor * 100) + "%"));
+  base.appendChild(document.createTextNode(" of them."));
+}).catch(() => {});
+$("name").value = "അടൂർ"; run();
+</script>
+</body>
+</html>
