@@ -5,3 +5,5 @@ __pycache__/
 htmlcov/
 .env
 *.pyc
+.devin_ids.json
+.scouts.json

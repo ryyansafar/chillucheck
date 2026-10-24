@@ -1,0 +1,50 @@
+{
+ "type": "object",
+ "properties": {
+  "repo": {
+   "type": "string"
+  },
+  "findings": {
+   "type": "array",
+   "maxItems": 10,
+   "items": {
+    "type": "object",
+    "properties": {
+     "file": {
+      "type": "string"
+     },
+     "line": {
+      "type": "integer"
+     },
+     "pattern": {
+      "type": "string"
+     },
+     "sample": {
+      "type": "string"
+     },
+     "fix_class": {
+      "type": "string"
+     },
+     "confidence": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "file",
+     "line",
+     "pattern",
+     "sample",
+     "fix_class",
+     "confidence"
+    ]
+   }
+  },
+  "notes": {
+   "type": "string"
+  }
+ },
+ "required": [
+  "repo",
+  "findings"
+ ]
+}

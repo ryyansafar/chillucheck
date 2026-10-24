@@ -1,0 +1,47 @@
+{
+ "type": "object",
+ "properties": {
+  "repo": {
+   "type": "string"
+  },
+  "test_file": {
+   "type": "string"
+  },
+  "files_changed": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  },
+  "suite_pass": {
+   "type": "boolean"
+  },
+  "repo_tests_pass": {
+   "type": "boolean"
+  },
+  "red_on_main": {
+   "type": "boolean"
+  },
+  "pr_url": {
+   "type": "string"
+  },
+  "skill_proposal": {
+   "type": "string"
+  },
+  "open_questions": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  }
+ },
+ "required": [
+  "repo",
+  "test_file",
+  "files_changed",
+  "suite_pass",
+  "repo_tests_pass",
+  "red_on_main",
+  "pr_url"
+ ]
+}
